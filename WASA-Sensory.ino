@@ -79,8 +79,8 @@ uint16_t tach_rotation = 0; //[0.01回転/秒]
 uint32_t alti_time = 0;
 uint16_t alti = 0;
 uint8_t alti_index = 0;
-uint16_t alt_original[ALTIMETER_SAMPLES] = {0};
-uint16_t alt_sample[ALTIMETER_SAMPLES] = {0};
+uint16_t alti_original[ALTIMETER_SAMPLES] = {0};
+uint16_t alti_sample[ALTIMETER_SAMPLES] = {0};
 
 uint8_t servo_rx_packet[SENSORY_COMM_MAX_BYTES] = {0};
 
@@ -189,7 +189,7 @@ void readAltitude() {
     alti_index = (alti_index + 1) % ALTIMETER_SAMPLES;
     for (uint8_t i = 0; i < ALTIMETER_SAMPLES; i++) alti_sample[i] = alti_original[i];
     sortAltSample(ALTIMETER_SAMPLES);
-    if ((alti = getAltSampleMode(ALTIMETER_SAMPLES, true)) != getAltSampleMode(ALTIMETER_SAMPLES, false)) alti = alt_sample[ALTIMETER_SAMPLES / 2];
+    if ((alti = getAltSampleMode(ALTIMETER_SAMPLES, true)) != getAltSampleMode(ALTIMETER_SAMPLES, false)) alti = alti_sample[ALTIMETER_SAMPLES / 2];
     payload[25] = lowByte(alti);
     payload[26] = highByte(alti);
     alti_time = millis();
@@ -198,23 +198,23 @@ void readAltitude() {
 
 void sortAltSample(uint8_t sample_size) {
   for (int i = 1; i < sample_size; i++) {
-    int j = alt_sample[i], k;
-    for (k = i - 1; (k >= 0) && (j < alt_sample[k]); k--) alt_sample[k + 1] = alt_sample[k];
-    alt_sample[k + 1] = j;
+    int j = alti_sample[i], k;
+    for (k = i - 1; (k >= 0) && (j < alti_sample[k]); k--) alti_sample[k + 1] = alti_sample[k];
+    alti_sample[k + 1] = j;
   }
 }
 
 uint16_t getAltSampleMode(uint8_t sample_size, boolean highest) {
-  uint16_t mode = alt_sample[0];
+  uint16_t mode = alti_sample[0];
   uint8_t mode_count = 1;
   uint8_t count = 1;
   for (int i = 1; i < sample_size; i++) {
-    if (alt_sample[i] == alt_sample[i - 1]) count++;
+    if (alti_sample[i] == alti_sample[i - 1]) count++;
     else count = 1;
-    if (alt_sample[i] == mode) mode_count++;
+    if (alti_sample[i] == mode) mode_count++;
     else if (!highest && count > mode_count || highest && count == mode_count) {
       mode_count = count;
-      mode = alt_sample[i];
+      mode = alti_sample[i];
     }
   }
   return mode;
