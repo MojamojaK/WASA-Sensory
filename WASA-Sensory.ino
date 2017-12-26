@@ -34,7 +34,7 @@ uint32_t last_transmit = 0;
 uint8_t payload[PAYLOAD_SIZE] = {0}; //XBee通信データパケット
 
 ZBTxRequest boat_packet = ZBTxRequest(addr64_boat, payload, PAYLOAD_SIZE);
-//ZBTxRequest land_packet = ZBTxRequest(addr64_land, payload, PAYLOAD_SIZE);
+ZBTxRequest land_packet = ZBTxRequest(addr64_land, payload, PAYLOAD_SIZE);
 
 // AndroidAccessory
 AndroidAccessory android("WASA", "Sensory001", "HPA Sensory Hardware", "0.0.2", "", "0000000114514810");
@@ -303,7 +303,7 @@ void transmitPayload() {
 
     digitalWrite(LED_BUILTIN, HIGH);
     xbee.send(boat_packet);
-    //xbee.send(land_packet);
+    xbee.send(land_packet);
 
     /*Serial.print(String(payload[1] | (payload[2] << 8)));
       Serial.print("\t");
