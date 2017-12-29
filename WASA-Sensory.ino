@@ -1,9 +1,22 @@
+// Hardware シリアルのバッファーの大きさを64byteから256byteに変更する必要性有り
+// 正しく設定しないとGPSの受信が失敗します
+// 設定方法はhttps://internetofhomethings.com/homethings/?p=927にて
+// なお、HardwareSerial.hという名前のファイルは複数存在する可能性があるのでご注意を
+// バッファーサイズはSerial.println(SERIAL_RX_BUFFER_SIZE); で確認できます。
+
+// 9軸センサの制御ライブラリは以下のURLで配布しています。
+// BOSCH社のライブラリを設定保存できるようにいじっています。
+// Copyright (C) 2011 - 2014 Bosch Sensortec GmbH
+// https://github.com/MojamojaK/arduino-library-nine-axes-motion
+
 #include <XBee.h>                         //Xbee経由PC通信用
 #include <AndroidAccessory.h>
 #include "NineAxesMotion.h"
 #include <Wire.h>
+#include "TinyGPS++.h"
 
 #define XBEE_SERIAL Serial  //XBee用シリアル
+#define GPS_SERIAL Serial1
 #define CONTROL_SERIAL Serial3
 
 #define PROP_PIN 2          //プロペラ回転数計インタラプト専用ピン
@@ -18,7 +31,7 @@
 #define MPU_MAX_CHECKS 20   //MPU応答確認回数
 #define ALTIMETER_SAMPLES 10//高度計の計測に利用する高度のサンプル数
 
-#define PAYLOAD_SIZE 32     //APIモードXBee通信データパケットサイズ
+#define PAYLOAD_SIZE 99     //APIモードXBee通信データパケットサイズ
 
 #define SENSORY_COMM_MAX_BYTES 64
 
@@ -84,12 +97,28 @@ uint16_t alti_sample[ALTIMETER_SAMPLES] = {0};
 
 uint8_t servo_rx_packet[SENSORY_COMM_MAX_BYTES] = {0};
 
+TinyGPSPlus gps;
+int32_t longitude = 139523889;
+int32_t latitude = 35975278;
+uint16_t groundSpeed = 0;
+uint8_t gpsTimeHour = 0;
+uint8_t gpsTimeMinute = 0;
+uint8_t gpsTimeSec = 0;
+uint8_t gpsTimeCentiSec = 0;
+uint32_t gpsAltitude = 0;
+uint8_t satellites = 0;
+uint32_t hdop = 9999;
+uint32_t gpsCourse = 0;
+uint32_t gpsLastReadTime = 0;
+uint32_t gpsLastParseTime = 0;
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   XBEE_SERIAL.begin(9600);                  // Xbee経由PC通信用シリアルの開始
   xbee.setSerial(XBEE_SERIAL);
   XBEE_SERIAL.print('B');
 
+  GPS_SERIAL.begin(9600);
   CONTROL_SERIAL.begin(9600);
 
   I2C.begin();
@@ -118,16 +147,27 @@ void setup() {
 
 void loop() {
   readAltitude();
+  readGPS();
   updateAccelGyroMag();
+  readGPS();
   readAccelGyroMag();
+  readGPS();
   readAltitude();
+  readGPS();
   stop_interrupts();
+  readGPS();
   calculateRotations();
+  readGPS();
   restart_interrupts();
+  readGPS();
   readAltitude();
+  readGPS();
   readServoInfo();
+  readGPS();
   readAltitude();
+  readGPS();
   transmitPayload();
+  readGPS();
 }
 
 void prop_count_handle() {
@@ -180,6 +220,60 @@ void readAccelGyroMag() {
     payload[27] |= calib_gyro << 4;
     payload[27] |= calib_system << 6;
     updateSensorData = true;
+  }
+}
+
+void readGPS() {
+  gpsLastReadTime = millis();
+  while (GPS_SERIAL.available() > 0) {
+    gps.encode(GPS_SERIAL.read());
+  }
+  //Serial.println(chars);
+  if (gps.location.isUpdated()) {
+    longitude = (int32_t)(gps.location.lng() * 1000000); // 緯度絶対角          (uint32_t)
+    latitude = (int32_t)(gps.location.lat() * 1000000);  // 経度絶対角          (uint32_t)
+    groundSpeed = (uint16_t)(gps.speed.mps() * 100);        // 時間：メートル/秒    (uint16_t)
+    gpsTimeHour = gps.time.hour();                          // 時間：時間          (uint8_t)
+    gpsTimeMinute = gps.time.minute();                      // 時間：分            (uint8_t)
+    gpsTimeSec = gps.time.second();                         // 時間：秒            (uint8_t)
+    gpsTimeCentiSec = gps.time.centisecond();               // 時間：センチ秒       (uint8_t)
+    gpsAltitude = gps.altitude.value();                     // cm単位の高度（不正確）(uint32_t)
+    satellites = gps.satellites.value();                    // 衛星の数            (uint8_t)
+    hdop = gps.hdop.value();                                // 精度(100倍)         (uint32_t)
+    gpsCourse = gps.course.value();                         // 進行方角(100倍)      (uint32_t)
+    //Serial.println(longitude);
+    payload[32] = 0x01;
+    payload[33] = (uint8_t) (longitude & 0x000000FF);
+    payload[34] = (uint8_t)((longitude & 0x0000FF00) >> 8);
+    payload[35] = (uint8_t)((longitude & 0x00FF0000) >> 16);
+    payload[36] = (uint8_t)((longitude & 0xFF000000) >> 24);
+    // payload[37] = (uint8_t) latitude_negative;
+    payload[38] = (uint8_t) (latitude & 0x000000FF);
+    payload[39] = (uint8_t)((latitude & 0x0000FF00) >> 8);
+    payload[40] = (uint8_t)((latitude & 0x00FF0000) >> 16);
+    payload[41] = (uint8_t)((latitude & 0xFF000000) >> 24);
+    payload[42] = (uint8_t) (groundSpeed & 0x00FF);
+    payload[43] = (uint8_t)((groundSpeed & 0xFF00) >> 8);
+    payload[44] = (uint8_t) gpsTimeHour;
+    payload[45] = (uint8_t) gpsTimeMinute;
+    payload[46] = (uint8_t) gpsTimeSec;
+    payload[47] = (uint8_t) gpsTimeCentiSec;
+    payload[48] = (uint8_t) (gpsAltitude & 0x000000FF);
+    payload[49] = (uint8_t)((gpsAltitude & 0x0000FF00) >> 8);
+    payload[50] = (uint8_t)((gpsAltitude & 0x00FF0000) >> 16);
+    payload[51] = (uint8_t)((gpsAltitude & 0xFF000000) >> 24);
+    payload[52] = (uint8_t)satellites;
+    payload[53] = (uint8_t) (hdop & 0x000000FF);
+    payload[54] = (uint8_t)((hdop & 0x0000FF00) >> 8);
+    payload[55] = (uint8_t)((hdop & 0x00FF0000) >> 16);
+    payload[56] = (uint8_t)((hdop & 0xFF000000) >> 24);
+    payload[57] = (uint8_t) (gpsCourse & 0x000000FF);
+    payload[58] = (uint8_t)((gpsCourse & 0x0000FF00) >> 8);
+    payload[59] = (uint8_t)((gpsCourse & 0x00FF0000) >> 16);
+    payload[60] = (uint8_t)((gpsCourse & 0xFF000000) >> 24);
+  }
+  else {
+    payload[32] = 0x00;
   }
 }
 
@@ -256,10 +350,10 @@ void calculateRotations() {
   tach_interrupts = 0;
   // Serial.println("tac " + String(tach_rotation) + "\ttac_int " + String(tach_interrupts) + "\tprop " + String(prop_rotation) + "\tprop_int " + String(prop_interrupts) + "\tdelta " + String(delta));
 
-  payload[1] = lowByte(prop_rotation);
-  payload[2] = highByte(prop_rotation);
-  payload[3] = lowByte(tach_rotation);
-  payload[4] = highByte(tach_rotation);
+  payload[1] = (uint8_t)(prop_rotation & 0x00FF);
+  payload[2] = (uint8_t)((prop_rotation & 0xFF00) >> 8);
+  payload[3] = (uint8_t)(tach_rotation & 0x00FF);
+  payload[4] = (uint8_t)((tach_rotation & 0xFF00) >> 8);
   payload[5] = (uint8_t)(tach_delta & 0x000000FF);
   payload[6] = (uint8_t)((tach_delta & 0x0000FF00) >> 8);
   payload[7] = (uint8_t)((tach_delta & 0x00FF0000) >> 16);
@@ -288,9 +382,29 @@ void readServoInfo() {
     servo_rx_packet[i] = CONTROL_SERIAL.read();
     wait_time = millis();
   }
-  if (servo_rx_packet[0] == 0x7C && servo_rx_packet[1] == 0xC7 && servo_rx_packet[len - 1] == checksum(servo_rx_packet, len - 1)) return;
-  for (uint8_t i = 0; i < servo_rx_packet[2]; i++) payload[i + 31] = servo_rx_packet[i + 3];
-  Serial.println("Received!");
+  if (!(servo_rx_packet[0] == 0x7C && servo_rx_packet[1] == 0xC7 && servo_rx_packet[len - 1] == checksum(servo_rx_packet, len - 1))) return;
+  for (uint8_t i = 0; i < servo_rx_packet[2]; i++) payload[i + 61] = servo_rx_packet[i + 3];
+  //Serial.println("Received!");
+  // ここでpayload[61~98]を占有
+  /*payload[61] = servo_rx_packet[3 ]; // RUDDER flag
+    payload[62] = servo_rx_packet[4 ]; // RUDDER position L
+    payload[63] = servo_rx_packet[5 ]; // RUDDER position H
+    payload[64] = servo_rx_packet[6 ]; // RUDDER goal time L
+    payload[65] = servo_rx_packet[7 ]; // RUDDER goal time H
+    payload[66] = servo_rx_packet[8 ]; // RUDDER max torque
+    payload[67] = servo_rx_packet[9 ]; // RUDDER torque mode
+    payload[68] = servo_rx_packet[10]; // RUDDER present position L
+    payload[69] = servo_rx_packet[11]; // RUDDER present position H
+    payload[70] = servo_rx_packet[12]; // RUDDER present time L
+    payload[71] = servo_rx_packet[13]; // RUDDER present time H
+    payload[72] = servo_rx_packet[14]; // RUDDER present speed L
+    payload[73] = servo_rx_packet[15]; // RUDDER present speed H
+    payload[74] = servo_rx_packet[16]; // RUDDER present load L
+    payload[75] = servo_rx_packet[17]; // RUDDER present load H
+    payload[76] = servo_rx_packet[18]; // RUDDER present temperature L
+    payload[77] = servo_rx_packet[19]; // RUDDER present temperature H
+    payload[78] = servo_rx_packet[20]; // RUDDER voltage L
+    payload[79] = servo_rx_packet[21]; // RUDDER voltage H*/
 }
 
 void transmitPayload() {
@@ -301,9 +415,9 @@ void transmitPayload() {
     payload[30] = (last_transmit & 0x00FF0000) >> 16;
     payload[31] = (last_transmit & 0xFF000000) >> 24;
 
-    digitalWrite(LED_BUILTIN, HIGH);
-    xbee.send(boat_packet);
-    xbee.send(land_packet);
+    // digitalWrite(LED_BUILTIN, HIGH);
+    // xbee.send(boat_packet);
+    // xbee.send(land_packet);
 
     /*Serial.print(String(payload[1] | (payload[2] << 8)));
       Serial.print("\t");
@@ -336,7 +450,7 @@ void transmitPayload() {
       Serial.print("\t");
       Serial.println();*/
     last_transmit = millis();
-    digitalWrite(LED_BUILTIN, LOW);
+    // digitalWrite(LED_BUILTIN, LOW);
   }
 }
 
