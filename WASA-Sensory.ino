@@ -27,19 +27,25 @@ void setup() {
 
 void loop() {
   readAltitude();                 // 高度
+  readGPS();
 
   readControl();                  // 操舵情報
+  readGPS();                      // GPS情報の読取り
 
   readAltitude();                 // 高度
+  readGPS();
 
   readTHP();                      // 温度、湿度、気圧
+  readGPS();
 
   readAltitude();                 // 高度
+  readGPS();
 
   updateIMU();                    // 9軸センサ(更新)
   readIMU();                      // 9軸センサ(取得)
 
   readAltitude();                 // 高度の読取り
+  readGPS();
 
   stopInterrupts();               // インタラプトの一時停止
   readGPS();                      // GPS情報の読取り
@@ -47,6 +53,7 @@ void loop() {
   restartInterrupts();            // インタラプトの再開
 
   readAltitude();                 // 高度の読取り
+  readGPS();
 
   // ----------------------------------+-------------+---------------+
   // 取得データの送信パケットへの積み込み     |配列インデックス|   情報         |
