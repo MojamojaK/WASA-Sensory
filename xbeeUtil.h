@@ -1,7 +1,7 @@
 #include <XBee.h>                         // Xbee経由PC通信用ライブラリ
 
 #define XBEE_SERIAL Serial                // XBee用シリアル
-#define PAYLOAD_SIZE 94     //APIモードXBee通信データパケットサイズ
+#define PAYLOAD_SIZE 98     //APIモードXBee通信データパケットサイズ
 
 #define transmit_cooldown 0
 uint32_t last_transmit = 0;

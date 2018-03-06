@@ -28,7 +28,7 @@ int16_t accel_z = 0;
 uint8_t calib = 0;
 
 void initIMU() {
-#ifdef DEBUG
+#ifdef DEBUG_IMU
   DEBUG_PORT.println("INIT IMU");
 #endif
   Wire.begin();
@@ -56,12 +56,12 @@ void updateIMU() {
 }
 
 void readIMU() {
-#ifdef DEBUG
+#ifdef DEBUG_IMU
   DEBUG_PORT.println("READ IMU");
 #endif
   if ((millis() - lastStreamTime) >= streamPeriod) {
     lastStreamTime = millis();
-    heading = accelGyroMag.readEulerHeading();
+    heading = accelGyroMag.readEulerHeading() * IMU_MULTI;
     roll    = accelGyroMag.readEulerRoll() * IMU_MULTI;
     pitch   = accelGyroMag.readEulerPitch() * IMU_MULTI;
     accel_x = accelGyroMag.readLinearAcceleration(X_AXIS) * IMU_MULTI;
@@ -77,19 +77,19 @@ void readIMU() {
 }
 
 void packIMU(uint8_t *payload) {
-  payload[5] = lowByte(heading);
-  payload[6] = highByte(heading);
-  payload[7] = lowByte(roll);
-  payload[8] = highByte(roll);
-  payload[9] = lowByte(pitch);
-  payload[10] = highByte(pitch);
-  payload[11] = lowByte(accel_x);
-  payload[12] = highByte(accel_x);
-  payload[13] = lowByte(accel_y);
-  payload[14] = highByte(accel_y);
-  payload[15] = lowByte(accel_z);
-  payload[16] = highByte(accel_z);
-  payload[17] = calib;
+  payload[9] = lowByte(heading);
+  payload[10] = highByte(heading);
+  payload[11] = lowByte(roll);
+  payload[12] = highByte(roll);
+  payload[13] = lowByte(pitch);
+  payload[14] = highByte(pitch);
+  payload[15] = lowByte(accel_x);
+  payload[16] = highByte(accel_x);
+  payload[17] = lowByte(accel_y);
+  payload[18] = highByte(accel_y);
+  payload[19] = lowByte(accel_z);
+  payload[20] = highByte(accel_z);
+  payload[21] = calib;
 
 }
 
