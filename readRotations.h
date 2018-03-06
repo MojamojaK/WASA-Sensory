@@ -1,30 +1,29 @@
 #define PROP_PIN 2          // プロペラ回転数計インタラプト専用ピン
 #define TACH_PIN 3          // 機速計インタラプト専用ピン
 
-#define PROP_SLITS 32       // 回転数計スリット数
-#define TACH_SLITS 100      // ロータリーエンコーダの分解能
-#define TACH_COEFF 10       // [0.01回転/秒]に掛けて[m/s]を得るための係数
-
 // 回転式インタラプト用時間管理引数
 unsigned long rot_last_calc = 0;
 unsigned long rot_curr_calc = 0;
 unsigned long tach_delta = 0;
-const unsigned long min_tach_delta = 150000;
+const unsigned long min_tach_delta = 150000; // 0.15ms
 
 volatile uint16_t prop_interrupts = 0;
-uint16_t prop_rotation = 0;               //[回転/分]
-#define PROP_PROPORTION 4                // prop_proportion回 機速計の計測に対して1回回転数計の計測を行う
+uint32_t prop_rotation = 0;               // [1000 interrupts per second] (1秒あたりのインタラプト回数を求めて送信。回転数は表示計の方で計算)
+#define PROP_PROPORTION 2                 // prop_proportion回 機速計の計測に対して1回回転数計の計測を行う (0.15ms * 2 = 0.30ms)
 uint8_t prop_waits = 0;                   // 機速計の計測を待った回数
 unsigned long prop_rot_last_calc = 0;
 unsigned long prop_delta = 0;
 
-volatile uint16_t tach_interrupts = 0;
-uint16_t tach_rotation = 0; //[0.01回転/秒]
+volatile uint16_t tach_interrupts = 0;    // インタラプトで演算する引数は必ず "volatile" をつけること。理由はググって。
+uint32_t tach_rotation = 0;               // [1000 interrupts per second]  (1秒あたりのインタラプト回数を求めて送信。機速は表示計の方で計算)
 
 void prop_count_handle();
 void tach_count_handle();
 
 void initRotations() {
+#ifdef DEBUG_ROTATION
+  DEBUG_PORT.println("INIT ROTATION");
+#endif
   pinMode(PROP_PIN, INPUT_PULLUP);
   pinMode(TACH_PIN, INPUT_PULLUP);
 
@@ -59,10 +58,13 @@ void stopInterrupts() {
 }
 
 void readRotations() {
+#ifdef DEBUG_ROTATION
+  DEBUG_PORT.println("READ ROTATION");
+#endif
   prop_waits++;
   if (prop_waits >= PROP_PROPORTION) {
     if (prop_interrupts > 5) {
-      prop_rotation = (uint16_t)((60000000.0f * prop_interrupts) / (PROP_SLITS * 2) / prop_delta); //[rpm]
+      prop_rotation = (uint32_t)((double)1000000000.0 * ((double)prop_interrupts / prop_delta)); //[1000 interrupts per second]
     }
     else {
       prop_rotation = 0;
@@ -71,18 +73,21 @@ void readRotations() {
     prop_interrupts = 0;
   }
   if (tach_interrupts > 5) {
-    tach_rotation = (uint16_t)((100000000.0f * tach_interrupts) / TACH_SLITS / tach_delta); //[0.01rps]
+    tach_rotation = (uint32_t)((double)1000000000.0 * ((double)tach_interrupts / tach_delta)); //[1000 interrupts per second]
   }
   else {
     tach_rotation = 0;
   }
   tach_interrupts = 0;
-  // Serial.println("tac " + String(tach_rotation) + "\ttac_int " + String(tach_interrupts) + "\tprop " + String(prop_rotation) + "\tprop_int " + String(prop_interrupts) + "\tdelta " + String(delta)); 
 }
 
 void packRotations(uint8_t *payload) {
-  payload[1] = (uint8_t)(prop_rotation & 0x00FF);
-  payload[2] = (uint8_t)((prop_rotation & 0xFF00) >> 8);
-  payload[3] = (uint8_t)(tach_rotation & 0x00FF);
-  payload[4] = (uint8_t)((tach_rotation & 0xFF00) >> 8);
+  payload[1] = (uint8_t)(prop_rotation & 0x000000FF);
+  payload[2] = (uint8_t)((prop_rotation & 0x0000FF00) >> 8);
+  payload[3] = (uint8_t)((prop_rotation & 0x00FF0000) >> 16);
+  payload[4] = (uint8_t)((prop_rotation & 0xFF000000) >> 24);
+  payload[5] = (uint8_t)(tach_rotation & 0x000000FF);
+  payload[6] = (uint8_t)((tach_rotation & 0x0000FF00) >> 8);
+  payload[7] = (uint8_t)((tach_rotation & 0x00FF0000) >> 16);
+  payload[8] = (uint8_t)((tach_rotation & 0xFF000000) >> 24);
 }

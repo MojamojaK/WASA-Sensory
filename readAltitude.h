@@ -5,7 +5,7 @@ uint32_t alti_time = 0;
 uint16_t alti = 0;
 
 void initAltitude() {
-#ifdef DEBUG
+#ifdef DEBUG_ALTI
   DEBUG_PORT.println("INIT ALTITUDE");
 #endif
   pinMode(ALTI_PIN, INPUT);
@@ -24,7 +24,7 @@ double snapCurve(uint16_t x) {
 }
 
 void readAltitude() {
-#ifdef DEBUG
+#ifdef DEBUG_ALTI
   DEBUG_PORT.println("READ ALTITUDE");
 #endif
   if ((uint32_t)(millis() - alti_time) > 10) {
@@ -37,7 +37,7 @@ void readAltitude() {
 }
 
 void packAltitude(uint8_t *payload) {
-  payload[18] = lowByte(alti);
-  payload[19] = highByte(alti);
+  payload[22] = lowByte(alti);
+  payload[23] = highByte(alti);
 }
 
