@@ -10,12 +10,17 @@
 
 #define IMU_MULTI 100
 
+// 2018/03/10現在の磁気偏角 確認は www.magnetic-declination.com で行ってください (-7°48' = -7.8 (48/60 = 0.8))
+// 時間と場所によって変わるので方角測定の際は気をつけてください
+// また、強力な太陽風などの磁気嵐が来る際は極付近で30°、中緯度では約2°の誤差が出ます。
+#define MAGENETIC_DECLINATION -7.8
+
 NineAxesMotion accelGyroMag;         //Object that for the sensor
 unsigned long lastStreamTime = 0;     //To store the last streamed time stamp
 const int streamPeriod = 20;          //To stream at 50Hz without using additional timers (time period(ms) =1000/frequency(Hz))
 unsigned long lastConfig = 0;
 int16_t accel_offset[4] = { -23, 10, 5, 1000};
-int16_t mag_offset[4] = {91, 255, 275, 615};
+int16_t mag_offset[4] = {100, 222, 279, 602};
 int16_t gyro_offset[3] = {1, -2, -1};
 bool updateSensorData = true;
 
@@ -61,7 +66,7 @@ void readIMU() {
 #endif
   if ((millis() - lastStreamTime) >= streamPeriod) {
     lastStreamTime = millis();
-    heading = accelGyroMag.readEulerHeading() * IMU_MULTI;
+    heading = accelGyroMag.readEulerHeading() - MAGENETIC_DECLINATION;
     roll    = accelGyroMag.readEulerRoll() * IMU_MULTI;
     pitch   = accelGyroMag.readEulerPitch() * IMU_MULTI;
     accel_x = accelGyroMag.readLinearAcceleration(X_AXIS) * IMU_MULTI;
@@ -92,4 +97,5 @@ void packIMU(uint8_t *payload) {
   payload[21] = calib;
 
 }
+
 

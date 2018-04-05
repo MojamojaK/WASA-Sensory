@@ -40,6 +40,7 @@ void initGPS(void) {
 void readGPS(void) {
 #ifdef DEBUG_GPS
   DEBUG_PORT.println("READ GPS");
+  DEBUG_PORT.flush();
 #endif
   start = millis();
   do {
@@ -47,7 +48,7 @@ void readGPS(void) {
       c = GPS_SERIAL.read();
       gps.encode(c);
     }
-  } while (millis - start < 10);
+  } while (millis() - start < 10);
 }
 
 void parseGPS(void) {
@@ -189,3 +190,4 @@ void packGPS(uint8_t *payload) {
   DEBUG_PORT.println(gpsCourse);
 #endif
 }
+

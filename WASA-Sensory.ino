@@ -4,7 +4,8 @@
 // なお、HardwareSerial.hという名前のファイルは複数存在する可能性があるのでご注意
 // バッファーサイズはSerial.println(SERIAL_RX_BUFFER_SIZE); で確認できます。
 
-#include "debug.h"
+// includeをする順番があります。ちょっとだけ気をつけてください。
+#include "debug.h"            // 一番上にする
 #include "readAltitude.h"
 #include "readGPS.h"
 #include "readIMU.h"
@@ -17,6 +18,7 @@
 void setup() {
   initDebug();
   initXBee();
+  initAccessory();
   initAltitude();
   initControl();
   initIMU();
@@ -26,45 +28,37 @@ void setup() {
 }
 
 void loop() {
-  readAltitude();                 // 高度
-  readGPS();
 
   readControl();                  // 操舵情報
   readGPS();                      // GPS情報の読取り
 
-  readAltitude();                 // 高度
-  readGPS();
-
   readTHP();                      // 温度、湿度、気圧
-  readGPS();
-
-  readAltitude();                 // 高度
-  readGPS();
 
   updateIMU();                    // 9軸センサ(更新)
   readIMU();                      // 9軸センサ(取得)
 
-  readAltitude();                 // 高度の読取り
-  readGPS();
-
-  stopInterrupts();               // インタラプトの一時停止
+  readAltitude();                 // 高度
   readGPS();                      // GPS情報の読取り
+
+  stopInterrupts();               // インタラプトの停止 (millis()とかdelay()が使えなくなります)
   readRotations();                // 回転数の計算
   restartInterrupts();            // インタラプトの再開
 
   readAltitude();                 // 高度の読取り
-  readGPS();
+  readGPS();                      // GPS情報の読取り
 
   // ----------------------------------+-------------+---------------+
-  // 取得データの送信パケットへの積み込み     |配列インデックス|   情報         |
+  // 取得データの送信パケットへの積み込み   |配列インデックス|   情報        |
   // ----------------------------------+-------------+---------------+
   packRotations (getPayload());     // | [1~4]       | 回転数データ    |
-  packIMU       (getPayload());     // | [5~17]      | 9軸センサデータ  |
+  packIMU       (getPayload());     // | [5~17]      | 9軸センサデータ |
   packAltitude  (getPayload());     // | [18~19]     | 高度           |
   packGPS       (getPayload());     // | [20~43]     | GPS情報        |
   packTHP       (getPayload());     // | [44~55]     | 温度・湿度・気圧 |
   packControl   (getPayload());     // | [56~93]     | 操舵情報        |
   // ----------------------------------+-------------+---------------+
 
+  accessory(getPayload());
   transmitPayload();              // パケットの送信
 }
+

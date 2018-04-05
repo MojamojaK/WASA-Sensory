@@ -88,3 +88,4 @@ void packControl(uint8_t *payload) {
   payload[96] = servo_rx_packet[39]; // ELEVATOR voltage L
   payload[97] = servo_rx_packet[40]; // ELEVATOR voltage H
 }
+

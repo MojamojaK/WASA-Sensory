@@ -8,9 +8,9 @@ unsigned long tach_delta = 0;
 const unsigned long min_tach_delta = 150000; // 0.15ms
 
 volatile uint16_t prop_interrupts = 0;
-uint32_t prop_rotation = 0;               // [1000 interrupts per second] (1秒あたりのインタラプト回数を求めて送信。回転数は表示計の方で計算)
-#define PROP_PROPORTION 2                 // prop_proportion回 機速計の計測に対して1回回転数計の計測を行う (0.15ms * 2 = 0.30ms)
-uint8_t prop_waits = 0;                   // 機速計の計測を待った回数
+uint32_t prop_rotation = 0;                 // [1000 interrupts per second] (1秒あたりのインタラプト回数を求めて送信。回転数は表示計の方で計算)
+#define PROP_PROPORTION 2  //通常2 風洞試験1  // prop_proportion回 機速計の計測に対して1回回転数計の計測を行う (0.15ms * 2 = 0.30ms)
+uint8_t prop_waits = 0;                     // 機速計の計測を待った回数
 unsigned long prop_rot_last_calc = 0;
 unsigned long prop_delta = 0;
 
@@ -27,7 +27,7 @@ void initRotations() {
   pinMode(PROP_PIN, INPUT_PULLUP);
   pinMode(TACH_PIN, INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(PROP_PIN), prop_count_handle, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(PROP_PIN), prop_count_handle, CHANGE); // 通常CHANGE 風洞試験FALLING
   attachInterrupt(digitalPinToInterrupt(TACH_PIN), tach_count_handle, FALLING);
   interrupts();
   rot_last_calc = micros();
@@ -91,3 +91,4 @@ void packRotations(uint8_t *payload) {
   payload[7] = (uint8_t)((tach_rotation & 0x00FF0000) >> 16);
   payload[8] = (uint8_t)((tach_rotation & 0xFF000000) >> 24);
 }
+
