@@ -1,6 +1,5 @@
 #define ALTI_PIN A0         // 高度用アナログピン
 
-#define SNAP_MULTIPLIER 0.01
 uint32_t alti_time = 0;
 uint16_t alti = 0;
 
@@ -24,14 +23,26 @@ double snapCurve(uint16_t x) {
 }
 
 void readAltitude() {
+  if ((uint32_t)(millis() - alti_time) > 350) {
+    // アナログ読取り(精度低いけど速い)
+    // uint16_t newValue = analogRead(ALTI_PIN) * 2;
+    // digitalWrite(DEBUG_LED, HIGH);
+    // uint16_t diff = abs(newValue - alti);
+    // double snap = snapCurve(diff * 0.01); // SNAP MULTIPLIER 0.01
+    // alti += (newValue - alti) * snap;
+    // digitalWrite(DEBUG_LED, LOW);
+
+    // パルス幅読取り(精度高いけど遅い(1回の測定に最高124msの時間がかかる))
+    uint16_t newValue = pulseIn(ALTI_PIN, HIGH, 124000) / 58.0;
+    if (newValue > 0) {
+       uint16_t diff = abs(newValue - alti);
+       double snap = snapCurve(diff * 0.5); // SNAP MULTIPLIER 0.5 (計測間隔が大きいので)
+       alti += (newValue - alti) * snap;
+    }
 #ifdef DEBUG_ALTI
-  DEBUG_PORT.println("READ ALTITUDE");
+    DEBUG_PORT.print("READ ALTITUDE: ");
+    DEBUG_PORT.println(alti);
 #endif
-  if ((uint32_t)(millis() - alti_time) > 10) {
-    uint16_t newValue = analogRead(ALTI_PIN) * 2;
-    uint16_t diff = abs(newValue - alti);
-    double snap = snapCurve(diff * SNAP_MULTIPLIER);
-    alti += (newValue - alti) * snap;
     alti_time = millis();
   }
 }
