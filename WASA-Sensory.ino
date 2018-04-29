@@ -1,4 +1,4 @@
-// Hardware シリアルのバッファーの大きさを64byteから256byteに変更する必要性有り
+vv  // Hardware シリアルのバッファーの大きさを64byteから256byteに変更する必要性有り
 // 正しく設定しないとGPSの受信が失敗する(かもしれない)
 // 設定方法はhttps://internetofhomethings.com/homethings/?p=927にて
 // なお、HardwareSerial.hという名前のファイルは複数存在する可能性があるのでご注意

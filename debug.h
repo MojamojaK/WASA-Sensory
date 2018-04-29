@@ -6,7 +6,7 @@
 
 #ifdef DEBUG
 //#define DEBUG_ANDROID
-#define DEBUG_ALTI
+//#define DEBUG_ALTI
 //#define DEBUG_CONTROL
 //#define DEBUG_GPS
 //#define DEBUG_IMU

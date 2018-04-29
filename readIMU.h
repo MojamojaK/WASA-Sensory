@@ -7,8 +7,11 @@
 
 #include "NineAxesMotion.h"               // 9軸センサ通信用ライブラリ
 #include <Wire.h>                         // I2Cセンサ(温湿度・気圧センサと9軸センサ)用ライブラリ
+#include <EEPROM.h>
 
 #define IMU_MULTI 100
+
+#define ID_ADDRESS 0x00; // ArduinoごとのIMUの設定を保管しておくので、
 
 // 2018/03/10現在の磁気偏角 確認は www.magnetic-declination.com で行ってください (-7°48' = -7.8 (48/60 = 0.8))
 // 時間と場所によって変わるので方角測定の際は気をつけてください
@@ -36,6 +39,32 @@ void initIMU() {
 #ifdef DEBUG_IMU
   DEBUG_PORT.println("INIT IMU");
 #endif
+  uint8_t id = EEPROM.read(0x00);
+  if (id == 0x00) {
+    accel_offset[0] = -23;
+    accel_offset[1] = 10;
+    accel_offset[2] = 5;
+    accel_offset[3] = 1000;
+    mag_offset[0] = 100;
+    mag_offset[1] = 222;
+    mag_offset[2] = 279;
+    mag_offset[3] = 602;
+    gyro_offset[0] = -1;
+    gyro_offset[1] = -2;
+    gyro_offset[2] = -1;
+  } else if (id == 0x01) {
+    accel_offset[0] = -37;
+    accel_offset[1] = 10;
+    accel_offset[2] = 3;
+    accel_offset[3] = 1000;
+    mag_offset[0] = -172;
+    mag_offset[1] = -19;
+    mag_offset[2] = 263;
+    mag_offset[3] = 1158;
+    gyro_offset[0] = -1;
+    gyro_offset[1] = -3;
+    gyro_offset[2] = -1;
+  }
   Wire.begin();
   //Sensor Initialization
   accelGyroMag.initSensor();          //The I2C Address can be changed here inside this function in the library
@@ -95,7 +124,6 @@ void packIMU(uint8_t *payload) {
   payload[19] = lowByte(accel_z);
   payload[20] = highByte(accel_z);
   payload[21] = calib;
-
 }
 
 

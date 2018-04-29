@@ -64,7 +64,7 @@ void transmitPayload() {
   if ((uint32_t)(millis() - last_transmit) > transmit_cooldown) {
     digitalWrite(DEBUG_LED, HIGH);
     xbee.send(boat_packet);
-    //xbee.send(land_packet);
+    xbee.send(land_packet);
     last_transmit = millis();
     digitalWrite(DEBUG_LED, LOW);
   }
