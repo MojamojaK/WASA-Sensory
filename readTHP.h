@@ -6,13 +6,17 @@
 #define BME_MULTI 100
 #define STARTUP_WAIT 2000
 
+#ifdef DEBUG_THP
+uint32_t loop_time_thp = 0;
+#endif
+
 BME280 bme280;
 
 boolean bme_enabled = false;
 int16_t temperature = 0;
 uint32_t pressure = 0;
 int16_t p_altitude = 0;
-uint32_t humidity = 0;
+uint16_t humidity = 0;
 
 boolean connectionTHP(void);
 
@@ -49,6 +53,7 @@ boolean connectionTHP(void) {
 
 void readTHP(void) {
 #ifdef DEBUG_THP
+  loop_time_thp = millis();
   DEBUG_PORT.println("READ THP");
 #endif
   if (bme_enabled) {
@@ -57,23 +62,26 @@ void readTHP(void) {
     p_altitude = bme280.calcAltitude(pressure) * BME_MULTI;
     humidity = bme280.getHumidity();
   }
+#ifdef DEBUG_THP
+  DEBUG_PORT.print("THP Loop Time: ");
+  DEBUG_PORT.print(millis() - loop_time_thp);
+  DEBUG_PORT.print("\n");
+  DEBUG_PORT.flush();
+#endif
 }
 
 void packTHP(uint8_t *payload) {
   if (bme_enabled) {
-    payload[48] = (uint8_t) (temperature & 0x00FF);
-    payload[49] = (uint8_t) ((temperature & 0xFF00) >> 8);
-    payload[50] = (uint8_t) (pressure & 0x000000FF);
-    payload[51] = (uint8_t) ((pressure & 0x0000FF00) >> 8);
-    payload[52] = (uint8_t) ((pressure & 0x00FF0000) >> 16);
-    payload[53] = (uint8_t) ((pressure & 0xFF000000) >> 24);
-    payload[54] = (uint8_t) (p_altitude & 0x00FF);
-    payload[55] = (uint8_t) ((p_altitude & 0xFF00) >> 8);
-    payload[56] = (uint8_t) (humidity & 0x000000FF);
-    payload[57] = (uint8_t) ((humidity & 0x0000FF00) >> 8);
-    payload[58] = (uint8_t) ((humidity & 0x00FF0000) >> 16);
-    payload[59] = (uint8_t) ((humidity & 0xFF000000) >> 24);
+    payload[45] = (uint8_t) (temperature & 0x00FF);
+    payload[46] = (uint8_t) ((temperature & 0xFF00) >> 8);
+    payload[47] = (uint8_t) (pressure & 0x000000FF);
+    payload[48] = (uint8_t) ((pressure & 0x0000FF00) >> 8);
+    payload[49] = (uint8_t) ((pressure & 0x00FF0000) >> 16);
+    payload[50] = (uint8_t) ((pressure & 0xFF000000) >> 24);
+    payload[51] = (uint8_t) (humidity & 0x000000FF);
+    payload[52] = (uint8_t) ((humidity & 0x0000FF00) >> 8);
   }
 }
+
 
 

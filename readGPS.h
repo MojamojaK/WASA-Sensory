@@ -5,6 +5,10 @@
 
 #define GPS_SERIAL Serial1                // GPS通信用シリアル
 
+#ifdef DEBUG_GPS
+uint32_t loop_time_gps = 0;
+#endif
+
 // GPSモジュールで最低限 GGA, RMC, GST メッセージの送信を有効にしてください
 
 TinyGPSPlus gps;
@@ -17,16 +21,11 @@ uint32_t  longitude = 1395238890;
 uint16_t  lat_err = 1000;
 uint16_t  lng_err = 1000;
 uint16_t  groundSpeed = 0;
-uint8_t   gpsTimeHour = 0;
-uint8_t   gpsTimeMinute = 0;
-uint8_t   gpsTimeSec = 0;
 uint32_t  gpsAltitude = 0;
 uint8_t   satelliteCount = 0;
 uint16_t  hdopValue = 9999;
 uint16_t  gpsCourse = 0;
 
-char c;
-int m_count = 0;
 uint32_t  start = 0;
 
 void initGPS(void) {
@@ -39,16 +38,22 @@ void initGPS(void) {
 
 void readGPS(void) {
 #ifdef DEBUG_GPS
+  loop_time_gps = millis();
   DEBUG_PORT.println("READ GPS");
   DEBUG_PORT.flush();
 #endif
   start = millis();
-  do {
+  while ((uint32_t)(millis() - start) < 5) {
     while (GPS_SERIAL.available()) {
-      c = GPS_SERIAL.read();
-      gps.encode(c);
+      gps.encode(GPS_SERIAL.read());
     }
-  } while (millis() - start < 10);
+  }
+#ifdef DEBUG_GPS
+  DEBUG_PORT.print("GPS Loop Time: ");
+  DEBUG_PORT.print(millis() - loop_time_gps);
+  DEBUG_PORT.print("\n");
+  DEBUG_PORT.flush();
+#endif
 }
 
 void parseGPS(void) {
@@ -76,20 +81,6 @@ void parseGPS(void) {
 #ifdef DEBUG_GPS && DEBUG_GPS_UPDATE
     DEBUG_PORT.print("HDOP VALID (");
     DEBUG_PORT.print(hdopValue);
-    DEBUG_PORT.println(")");
-#endif
-  }
-  if (gps.time.isUpdated() && gps.time.isValid()) {
-    gpsTimeHour = (uint8_t)gps.time.hour();
-    gpsTimeMinute = (uint8_t)gps.time.minute();
-    gpsTimeSec = (uint8_t)gps.time.second();
-#ifdef DEBUG_GPS && DEBUG_GPS_UPDATE
-    DEBUG_PORT.print("TIME VALID (");
-    DEBUG_PORT.print(gpsTimeHour);
-    DEBUG_PORT.print(":");
-    DEBUG_PORT.print(gpsTimeMinute);
-    DEBUG_PORT.print(":");
-    DEBUG_PORT.print(gpsTimeSec);
     DEBUG_PORT.println(")");
 #endif
   }
@@ -147,23 +138,20 @@ void packGPS(uint8_t *payload) {
   payload[31] = (uint8_t)((latitude & 0xFF000000) >> 24);
   payload[32] = (uint8_t) (groundSpeed & 0x00FF);
   payload[33] = (uint8_t)((groundSpeed & 0xFF00) >> 8);
-  payload[34] = (uint8_t) gpsTimeHour;
-  payload[35] = (uint8_t) gpsTimeMinute;
-  payload[36] = (uint8_t) gpsTimeSec;
-  payload[37] = (uint8_t) (gpsAltitude & 0x000000FF);
-  payload[38] = (uint8_t)((gpsAltitude & 0x0000FF00) >> 8);
-  payload[39] = (uint8_t)((gpsAltitude & 0x00FF0000) >> 16);
-  payload[40] = (uint8_t)((gpsAltitude & 0xFF000000) >> 24);
-  payload[41] = (uint8_t)satelliteCount;
-  payload[42] = (uint8_t) (hdopValue & 0x000000FF);
-  payload[43] = (uint8_t)((hdopValue & 0x0000FF00) >> 8);
-  payload[44] = (uint8_t)((hdopValue & 0x00FF0000) >> 16);
-  payload[45] = (uint8_t)((hdopValue & 0xFF000000) >> 24);
-  payload[46] = (uint8_t) (gpsCourse & 0x000000FF);
-  payload[47] = (uint8_t)((gpsCourse & 0x0000FF00) >> 8);
+  payload[34] = (uint8_t) (gpsAltitude & 0x000000FF);
+  payload[35] = (uint8_t)((gpsAltitude & 0x0000FF00) >> 8);
+  payload[36] = (uint8_t)((gpsAltitude & 0x00FF0000) >> 16);
+  payload[37] = (uint8_t)((gpsAltitude & 0xFF000000) >> 24);
+  payload[38] = (uint8_t)satelliteCount;
+  payload[39] = (uint8_t) (hdopValue & 0x000000FF);
+  payload[40] = (uint8_t)((hdopValue & 0x0000FF00) >> 8);
+  payload[41] = (uint8_t)((hdopValue & 0x00FF0000) >> 16);
+  payload[42] = (uint8_t)((hdopValue & 0xFF000000) >> 24);
+  payload[43] = (uint8_t) (gpsCourse & 0x000000FF);
+  payload[44] = (uint8_t)((gpsCourse & 0x0000FF00) >> 8);
 
 #ifdef DEBUG_GPS
-  DEBUG_PORT.println("==============================");
+  /*DEBUG_PORT.println("==============================");
   DEBUG_PORT.print("latitude: ");
   DEBUG_PORT.println(latitude);
   DEBUG_PORT.print("longitude: ");
@@ -174,12 +162,6 @@ void packGPS(uint8_t *payload) {
   DEBUG_PORT.println(lng_err);
   DEBUG_PORT.print("groundSpeed: ");
   DEBUG_PORT.println(groundSpeed);
-  DEBUG_PORT.print("Time: ");
-  DEBUG_PORT.print(gpsTimeHour);
-  DEBUG_PORT.print(":");
-  DEBUG_PORT.print(gpsTimeMinute);
-  DEBUG_PORT.print(":");
-  DEBUG_PORT.println(gpsTimeSec);
   DEBUG_PORT.print("gpsAltitude: ");
   DEBUG_PORT.println(gpsAltitude);
   DEBUG_PORT.print("satellites: ");
@@ -187,7 +169,8 @@ void packGPS(uint8_t *payload) {
   DEBUG_PORT.print("hdop: ");
   DEBUG_PORT.println(hdopValue);
   DEBUG_PORT.print("gpsCourse: ");
-  DEBUG_PORT.println(gpsCourse);
+  DEBUG_PORT.println(gpsCourse);*/
 #endif
 }
+
 

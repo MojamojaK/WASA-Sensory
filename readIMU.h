@@ -13,10 +13,14 @@
 
 #define ID_ADDRESS 0x00; // ArduinoごとのIMUの設定を保管しておくので、
 
-// 2018/03/10現在の磁気偏角 確認は www.magnetic-declination.com で行ってください (-7°48' = -7.8 (48/60 = 0.8))
+// 2018/03/10現在の磁気偏角 確認は www.magnetic-declination.com で行ってください (-7°37' = -7.67 (37/60 = 0.67))
 // 時間と場所によって変わるので方角測定の際は気をつけてください
 // また、強力な太陽風などの磁気嵐が来る際は極付近で30°、中緯度では約2°の誤差が出ます。
-#define MAGENETIC_DECLINATION -7.8
+#define MAGENETIC_DECLINATION 7.67
+
+#ifdef DEBUG_IMU
+uint32_t loop_time_imu = 0;
+#endif
 
 NineAxesMotion accelGyroMag;         //Object that for the sensor
 unsigned long lastStreamTime = 0;     //To store the last streamed time stamp
@@ -91,6 +95,7 @@ void updateIMU() {
 
 void readIMU() {
 #ifdef DEBUG_IMU
+  loop_time_imu = millis();
   DEBUG_PORT.println("READ IMU");
 #endif
   if ((millis() - lastStreamTime) >= streamPeriod) {
@@ -108,6 +113,12 @@ void readIMU() {
     calib |=  (uint8_t)accelGyroMag.readSystemCalibStatus() << 6; // System Calibration Status (0 - 3)
     updateSensorData = true;
   }
+#ifdef DEBUG_IMU
+  DEBUG_PORT.print("IMU Loop Time: ");
+  DEBUG_PORT.print(millis() - loop_time_imu);
+  DEBUG_PORT.print("\n");
+  DEBUG_PORT.flush();
+#endif
 }
 
 void packIMU(uint8_t *payload) {
@@ -125,5 +136,6 @@ void packIMU(uint8_t *payload) {
   payload[20] = highByte(accel_z);
   payload[21] = calib;
 }
+
 
 

@@ -26,6 +26,10 @@ uint8_t receiveBuffer[RECEIVE_BUFFER_SIZE];
 
 uint8_t android_checksum(void);
 
+#ifdef DEBUG_ANDROID
+uint32_t loop_time_android = 0;
+#endif
+
 void initAccessory (void) {
 #ifdef DEBUG_ANDROID
   DEBUG_PORT.print("INIT ANDROID");
@@ -40,6 +44,9 @@ void initAccessory (void) {
 }
 
 void accessory(uint8_t *payload) {
+#ifdef DEBUG_ANDROID
+  loop_time_android = millis();
+#endif
   if (USBInit) {
     Usb.Task();
 
@@ -76,16 +83,16 @@ void accessory(uint8_t *payload) {
         androidPayload[ANDROID_CHECKSUM_BYTE] = android_checksum();
 
         /*DEBUG_PORT.print("ANDROID PAYLOAD:\n");
-        for (int i = 0; i < ANDROID_PAYLOAD_SIZE; i++) {
+          for (int i = 0; i < ANDROID_PAYLOAD_SIZE; i++) {
           DEBUG_PORT.print(androidPayload[i]);
           if (i % 30 == 0 && i != 0) DEBUG_PORT.print('\n');
           else DEBUG_PORT.print(' ');
-        }
-        DEBUG_PORT.println();*/
+          }
+          DEBUG_PORT.println();*/
 
         rcode = android.SndData(ANDROID_PAYLOAD_SIZE, androidPayload);
         // 送った後はPayloadの中身が0になります
-        
+
         accTransmitLastTime = millis();
         if (rcode && rcode != hrNAK) {
 #ifdef DEBUG_ANDROID
@@ -94,7 +101,7 @@ void accessory(uint8_t *payload) {
 #endif
         } else if (rcode != hrNAK) {
 #ifdef DEBUG_ANDROID
-        DEBUG_PORT.print("SENT ANDROID PAYLOAD\n");
+          DEBUG_PORT.print("SENT ANDROID PAYLOAD\n");
 #endif
         }
       }
@@ -102,6 +109,12 @@ void accessory(uint8_t *payload) {
       androidConnected = false;
     }
   }
+#ifdef DEBUG_ANDROID
+  DEBUG_PORT.print("Android Loop Time: ");
+  DEBUG_PORT.print(millis() - loop_time_android);
+  DEBUG_PORT.print("\n");
+  DEBUG_PORT.flush();
+#endif
 }
 
 uint8_t android_checksum(void) {
@@ -112,5 +125,6 @@ uint8_t android_checksum(void) {
   }
   return sum;
 }
+
 
 
