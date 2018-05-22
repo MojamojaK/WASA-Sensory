@@ -10,21 +10,22 @@ uint32_t loop_time_gps = 0;
 #endif
 
 // GPSモジュールで最低限 GGA, RMC, GST メッセージの送信を有効にしてください
+// https://www.u-blox.com/en/product/u-center-windows
 
 TinyGPSPlus gps;
 TinyGPSCustom latitudeError(gps, "GNGST", 6);
 TinyGPSCustom longitudeError(gps, "GNGST", 7);
 
 uint8_t   valid = 0;
-uint32_t  latitude = 359752780;
-uint32_t  longitude = 1395238890;
-uint16_t  lat_err = 1000;
-uint16_t  lng_err = 1000;
-uint16_t  groundSpeed = 0;
-uint32_t  gpsAltitude = 0;
-uint8_t   satelliteCount = 0;
-uint16_t  hdopValue = 9999;
-uint16_t  gpsCourse = 0;
+uint32_t  latitude = 359752780;   // 緯度 10000000倍 359752780
+uint32_t  longitude = 1395238890; // 経度 10000000倍 1395238890
+uint16_t  lat_err = 1000;         // 緯度の誤差分散(σ=1) (メートル) 10倍
+uint16_t  lng_err = 1000;         // 経度の誤差分散(σ=1) (メートル) 10倍
+uint16_t  groundSpeed = 0;        // 対地速度(m/s) 1000倍 けっこう不正確です
+uint32_t  gpsAltitude = 0;        // 高度 センチ単位
+uint8_t   satelliteCount = 0;     // 有効な信号を受信している衛星数
+uint16_t  hdopValue = 9999;       // 水平精度 100倍 https://en.wikipedia.org/wiki/Dilution_of_precision_(navigation)
+uint16_t  gpsCourse = 0;          // 進行方向(deg) 100倍
 
 uint32_t  start = 0;
 
@@ -109,7 +110,7 @@ void parseGPS(void) {
 #endif
   }
   if (latitudeError.isUpdated() && latitudeError.isValid()) {
-    lat_err = (uint16_t)latitudeError.value();
+    lat_err = (uint16_t) (String(latitudeError.value()).toFloat() * 10); // 返ってくるのが"4.4"みたいな感じのchar型の配列なのでコレを44の整数に変換 10倍
 #ifdef DEBUG_GPS && DEBUG_GPS_UPDATE
     DEBUG_PORT.print("LAT_ERR VALID (");
     DEBUG_PORT.print(lat_err);
@@ -117,7 +118,7 @@ void parseGPS(void) {
 #endif
   }
   if (longitudeError.isUpdated() && longitudeError.isValid()) {
-    lng_err = (uint16_t)longitudeError.value();
+    lng_err = (uint16_t) (String(longitudeError.value()).toFloat() * 10);
 #ifdef DEBUG_GPS && DEBUG_GPS_UPDATE
     DEBUG_PORT.print("LNG_ERR VALID (");
     DEBUG_PORT.print(lng_err);
@@ -147,11 +148,16 @@ void packGPS(uint8_t *payload) {
   payload[40] = (uint8_t)((hdopValue & 0x0000FF00) >> 8);
   payload[41] = (uint8_t)((hdopValue & 0x00FF0000) >> 16);
   payload[42] = (uint8_t)((hdopValue & 0xFF000000) >> 24);
-  payload[43] = (uint8_t) (gpsCourse & 0x000000FF);
-  payload[44] = (uint8_t)((gpsCourse & 0x0000FF00) >> 8);
+  payload[43] = (uint8_t) (gpsCourse & 0x00FF);
+  payload[44] = (uint8_t)((gpsCourse & 0xFF00) >> 8);
+  payload[73] = (uint8_t)(lng_err & 0x00FF);
+  payload[74] = (uint8_t)((lng_err & 0xFF00) >> 8);
+  payload[75] = (uint8_t)(lat_err & 0x00FF);
+  payload[76] = (uint8_t)((lat_err & 0xFF00) >> 8);
+  
 
 #ifdef DEBUG_GPS
-  /*DEBUG_PORT.println("==============================");
+  DEBUG_PORT.println("==============================");
   DEBUG_PORT.print("latitude: ");
   DEBUG_PORT.println(latitude);
   DEBUG_PORT.print("longitude: ");
@@ -169,7 +175,7 @@ void packGPS(uint8_t *payload) {
   DEBUG_PORT.print("hdop: ");
   DEBUG_PORT.println(hdopValue);
   DEBUG_PORT.print("gpsCourse: ");
-  DEBUG_PORT.println(gpsCourse);*/
+  DEBUG_PORT.println(gpsCourse);
 #endif
 }
 

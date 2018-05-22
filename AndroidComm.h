@@ -35,6 +35,9 @@ void initAccessory (void) {
   DEBUG_PORT.print("INIT ANDROID");
 #endif
   if (Usb.Init() != -1) {
+#ifdef DEBUG_ANDROID
+    DEBUG_PORT.print(" INITILIZED");
+#endif
     USBInit = true;
   }
   accTransmitLastTime = millis();
@@ -51,6 +54,9 @@ void accessory(uint8_t *payload) {
     Usb.Task();
 
     if (android.isReady()) {
+#ifdef DEBUG_ANDROID
+      DEBUG_PORT.print("ANDROID CONNECTED\n");
+#endif
       if (!androidConnected) {
         androidConnected = true;
       }
@@ -107,6 +113,9 @@ void accessory(uint8_t *payload) {
       }
     } else {
       androidConnected = false;
+#ifdef DEBUG_ANDROID
+      DEBUG_PORT.print("ANDROID NOT CONNECTED\n");
+#endif
     }
   }
 #ifdef DEBUG_ANDROID

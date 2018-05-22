@@ -1,6 +1,6 @@
 // デバッグ関係のものをいじるところです
 
-// #define DEBUG  // シリアルデバッグを有効にするにはこの行のコメントアウトを外して下さい
+//#define DEBUG  // シリアルデバッグを有効にするにはこの行のコメントアウトを外して下さい
 // デバッグ有効時はxbee出力が自動的に無効にされるのでご注意
 // さらに、デバッガーによるシリアルの占有率が上がるのでxbee出力の頻度は一気に落ちます
 
@@ -11,7 +11,8 @@
 //#define DEBUG_CONTROL
 //#define DEBUG_GPS
 //#define DEBUG_IMU
-#define DEBUG_ROTATION
+//#define DEBUG_ROTATION
+//#define DEBUG_TACHOMETER
 //#define DEBUG_THP
 //#define DEBUG_XBEE
 #endif

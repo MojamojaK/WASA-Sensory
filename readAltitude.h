@@ -3,11 +3,11 @@
 
 #define ALTI_PIN A0         // 高度用アナログピン
 
-volatile uint8_t alti_curr_pulse = LOW;
-volatile uint8_t alti_last_time_pulse = LOW;
+uint8_t alti_curr_pulse = LOW;
+uint8_t alti_last_time_pulse = LOW;
 
 uint32_t alti_last_time = 0;
-volatile uint16_t alti_count = 0;
+uint16_t alti_count = 0;
 volatile uint16_t alti_tmp = 0;
 uint16_t alti = 0;
 
@@ -28,8 +28,6 @@ void initAltitude() {
 }
 
 void attachAltitude() {
-  uint32_t t = millis();
-  while (digitalRead(ALTI_PIN) == HIGH && (uint8_t)(millis() - t) < 62){}
   Timer1.attachInterrupt(calcAltitude);
 }
 

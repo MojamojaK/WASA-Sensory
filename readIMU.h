@@ -43,18 +43,23 @@ void initIMU() {
 #ifdef DEBUG_IMU
   DEBUG_PORT.println("INIT IMU");
 #endif
+  // EEPROM 0x00番地 本番用センサ: 0x00 予備センサ: 0x01 (初期値:0xFF)
   uint8_t id = EEPROM.read(0x00);
+#ifdef DEBUG_IMU
+  DEBUG_PORT.print("Board ID: ");
+  DEBUG_PORT.println(id);
+#endif
   if (id == 0x00) {
-    accel_offset[0] = -23;
-    accel_offset[1] = 10;
-    accel_offset[2] = 5;
+    accel_offset[0] = -28;
+    accel_offset[1] = -9;
+    accel_offset[2] = 15;
     accel_offset[3] = 1000;
-    mag_offset[0] = 100;
-    mag_offset[1] = 222;
-    mag_offset[2] = 279;
-    mag_offset[3] = 602;
-    gyro_offset[0] = -1;
-    gyro_offset[1] = -2;
+    mag_offset[0] = 139;
+    mag_offset[1] = 212;
+    mag_offset[2] = 299;
+    mag_offset[3] = 606;
+    gyro_offset[0] = 0;
+    gyro_offset[1] = -1;
     gyro_offset[2] = -1;
   } else if (id == 0x01) {
     accel_offset[0] = -37;
@@ -69,6 +74,7 @@ void initIMU() {
     gyro_offset[1] = -3;
     gyro_offset[2] = -1;
   }
+
   Wire.begin();
   //Sensor Initialization
   accelGyroMag.initSensor();          //The I2C Address can be changed here inside this function in the library
@@ -103,8 +109,8 @@ void readIMU() {
     heading = accelGyroMag.readEulerHeading() - MAGENETIC_DECLINATION;
     roll    = accelGyroMag.readEulerRoll() * IMU_MULTI;
     pitch   = accelGyroMag.readEulerPitch() * IMU_MULTI;
-    accel_x = accelGyroMag.readLinearAcceleration(X_AXIS) * IMU_MULTI;
-    accel_y = accelGyroMag.readLinearAcceleration(Y_AXIS) * IMU_MULTI;
+    accel_x = -accelGyroMag.readLinearAcceleration(X_AXIS) * IMU_MULTI;
+    accel_y = -accelGyroMag.readLinearAcceleration(Y_AXIS) * IMU_MULTI;
     accel_z = accelGyroMag.readLinearAcceleration(Z_AXIS) * IMU_MULTI;
     calib = 0;
     calib |=  (uint8_t)accelGyroMag.readAccelCalibStatus();       // Accelerometer Calibration Status (0 - 3)

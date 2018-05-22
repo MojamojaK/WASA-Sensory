@@ -4,13 +4,13 @@
 #include <XBee.h>                         // Xbee経由PC通信用ライブラリ
 
 #define XBEE_SERIAL Serial                // XBee用シリアル
-#define PAYLOAD_SIZE 73     //APIモードXBee通信データパケットサイズ broadcastはMAX:92 unicastはMAX:84(超えてもなんかできてた)
+#define PAYLOAD_SIZE 77     //APIモードXBee通信データパケットサイズ broadcastはMAX:92 unicastはMAX:84(超えてもなんかできてた)
 
 #ifdef DEBUG_XBEE
 uint32_t loop_time_xbee = 0;
 #endif
 
-const uint16_t transmit_cooldown = 70;
+const uint16_t transmit_cooldown = 50;
 uint32_t last_transmit = 0;
 
 uint8_t payload[PAYLOAD_SIZE] = {0}; //XBee通信データパケット
@@ -19,6 +19,17 @@ XBee xbee = XBee();         //APIモードXBee通信インスタンス
 
 // 接続予定のZigbeeの個数
 const uint8_t XBEE_COUNT = 2;
+const uint8_t frameId_offset = 2;
+
+typedef struct XBeeProfile {
+  uint8_t frameId;
+  XBeeAddress64 address64;
+  ZBTxRequest request;
+  boolean responded = true;
+  uint32_t last_sent_time = 0;
+} XBeeProfile;
+
+XBeeProfile xbeeProfile[XBEE_COUNT];
 
 // 送信先のXbeeのシリアル番号
 // 配信するとき(Broadcast)はアドレスを(0x00000000, 0x0000FFFF)にする
@@ -30,17 +41,17 @@ XBeeAddress64 XBeeAddressArray[XBEE_COUNT] = {
   XBeeAddress64(0x0013A200, 0x40E7EAF6)
 };
 
-ZBTxRequest ZBTxRequestArray[XBEE_COUNT];
-
 ZBRxResponse rx = ZBRxResponse();
 ZBTxStatusResponse tsr = ZBTxStatusResponse();
 
 void initXBee() {
   payload[0] = 0xAA;
   for (uint8_t i = 0; i < XBEE_COUNT; i++) {
-    ZBTxRequestArray[i] = ZBTxRequest(XBeeAddressArray[i], payload, PAYLOAD_SIZE);
-    ZBTxRequestArray[i].setFrameId(i+1); // FrameIDを0以外の数字にすることで返答をオフにする(返答に依存するものを作りたくないだけ)
-    ZBTxRequestArray[i].setOption(0x01); // [超重要]送信失敗時に送信をリトライすることを無効にする, これがないと複数送信を保証できない
+    xbeeProfile[i].frameId = i + 1;
+    xbeeProfile[i].address64 = XBeeAddressArray[i];
+    xbeeProfile[i].request = ZBTxRequest(xbeeProfile[i].address64, payload, PAYLOAD_SIZE);
+    xbeeProfile[i].request.setFrameId(i + frameId_offset); // FrameIDを0以外の数字にすることで返答をオフにする(返答に依存するものを作りたくないだけ)
+    xbeeProfile[i].request.setOption(0x01); // [超重要]送信失敗時に送信をリトライすることを無効にする, これがないと複数送信を保証できない
   }
   XBEE_SERIAL.begin(57600);                  // Xbee経由PC通信用シリアルの開始
   XBEE_SERIAL.write('B');                   // Xbee Programmable モデル使用時は電源を入れた後にBypassモードにするために'B'と送る必要がある
@@ -51,8 +62,10 @@ void receivePayload() {
   xbee.readPacket(); // 受信パケットを読み込み
   if (xbee.getResponse().isAvailable()) {
     // 何かが受信された
+#ifdef DEBUG_XBEE
     DEBUG_PORT.print("Received API ID: 0x");
     DEBUG_PORT.println(xbee.getResponse().getApiId(), HEX);
+#endif
     if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) { // 相手がデータを送ってきた
       xbee.getResponse().getZBRxResponse(rx);
       if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
@@ -66,8 +79,17 @@ void receivePayload() {
       flashDebug(rx.getData(0) * 10, 0);
     } else if (xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
       xbee.getResponse().getZBTxStatusResponse(tsr);
+      uint8_t frameId = tsr.getFrameId();
+#ifdef DEBUG_XBEE
       DEBUG_PORT.print("Frame ID: 0x");
-      DEBUG_PORT.println(tsr.getFrameId(), HEX);
+      DEBUG_PORT.print(frameId, HEX);
+      DEBUG_PORT.print(" ");
+      if (tsr.isSuccess()) DEBUG_PORT.println("Success!");
+      else DEBUG_PORT.println("Failed");
+#endif
+      if (0 <= frameId - frameId_offset && frameId - frameId_offset < XBEE_COUNT) {
+        if (tsr.isSuccess()) xbeeProfile[frameId - frameId_offset].responded = true;
+      }
     } else {
       flashDebug(1, 25);
     }
@@ -79,24 +101,38 @@ uint8_t *getPayload() {
   return payload;
 }
 
-uint8_t dest = 0;
+uint8_t last_dest = 0;
+uint8_t dest;
 
 void transmitPayload() {
 #ifdef DEBUG_XBEE
   loop_time_xbee = millis();
 #endif
+
   if ((uint32_t)(millis() - last_transmit) > transmit_cooldown) {
-    digitalWrite(DEBUG_LED, HIGH);
-//    xbee.send(ZBTxRequestArray[dest]); // まあとりあえず送信する
-//    DEBUG_PORT.println(); // デバッグしやすくるためだけに改行
-//    dest = (dest + 1) % XBEE_COUNT;
-    for (uint8_t i = 0; i < XBEE_COUNT; i++) {
-      xbee.send(ZBTxRequestArray[i]); // まあとりあえず送信する
-      DEBUG_PORT.println(); // デバッグしやすくるためだけに改行
+    boolean has_connected = false;
+    for (uint8_t i = 0, dest = last_dest; i < XBEE_COUNT; i++, dest = (last_dest + 1) % XBEE_COUNT) {
+      if (xbeeProfile[dest].responded || (uint32_t)(millis() - xbeeProfile[dest].last_sent_time) > 10000) {
+        // digitalWrite(DEBUG_LED, HIGH);
+        xbee.send(xbeeProfile[dest].request);
+        DEBUG_PORT.println();
+        xbeeProfile[dest].last_sent_time = millis();
+        xbeeProfile[dest].responded = false;
+        last_dest = dest;
+        // digitalWrite(DEBUG_LED, LOW);
+        has_connected = true;
+        last_transmit = millis();
+        break;
+      }
     }
-    last_transmit = millis();
-    digitalWrite(DEBUG_LED, LOW);
+    if (!has_connected) {
+      for (uint8_t i = 0; i < XBEE_COUNT; i++) {
+        xbeeProfile[i].responded = true;
+      }
+    }
+    last_dest = (last_dest + 1) % XBEE_COUNT;
   }
+  
 #ifdef DEBUG_XBEE
   DEBUG_PORT.print("\nXBEE transmit Loop Time: ");
   DEBUG_PORT.print(millis() - loop_time_xbee);

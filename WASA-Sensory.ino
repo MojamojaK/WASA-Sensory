@@ -12,7 +12,8 @@
 #include "readTHP.h"
 #include "readControl.h"
 #include "xbeeUtil.h"
-#include "readRotations.h"
+#include "readPropeller.h"
+#include "readTachometer.h"
 #include "AndroidComm.h"
 
 void setup() {
@@ -24,13 +25,15 @@ void setup() {
   initIMU();
   initTHP();
   initGPS();
-  initRotations();
+  initPropeller();
+  initTachometer();
 }
 
 void loop() {
 
   readControl();                  // 操舵情報
   readGPS();                      // GPS情報の読取り
+  receivePayload();               // PCからデータ受信
 
   readTHP();                      // 温度、湿度、気圧
 
@@ -38,14 +41,14 @@ void loop() {
   readIMU();                      // 9軸センサ(取得)
 
   readAltitude();                 // 高度 一回の実行に約86msかかります。気をつけて下さい。
+  readPropeller();                // 回転数の計算
+  readTachometer();               // 機速の計算
+
   readGPS();                      // GPS情報の読取り
+  receivePayload();               // PCからデータ受信
 
-  readRotations();                // 回転数の計算
-
-  readAltitude();                 // 高度の読取り
-  readGPS();                      // GPS情報の読取り
-
-  packRotations (getPayload());     // | [1~4]       | 回転数データ    |
+  packPropeller (getPayload());     // | [1~4]       | 回転数データ    |
+  packTachometer(getPayload());
   packIMU       (getPayload());     // | [5~17]      | 9軸センサデータ |
   packAltitude  (getPayload());     // | [18~19]     | 高度           |
   packGPS       (getPayload());     // | [20~43]     | GPS情報        |
@@ -53,10 +56,9 @@ void loop() {
   packControl   (getPayload());     // | [56~93]     | 操舵情報        |
 
   accessory(getPayload());        // androidパケット送受信
+
+  receivePayload();               // PCからデータ受信
   transmitPayload();              // xbeeにパケットの送信
-  receivePayload();               // PCからデータ受信
-  receivePayload();               // PCからデータ受信
-  receivePayload();               // PCからデータ受信
 }
 
 
