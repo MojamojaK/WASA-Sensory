@@ -50,28 +50,28 @@ void initIMU() {
   DEBUG_PORT.println(id);
 #endif
   if (id == 0x00) {
-    accel_offset[0] = -28;
-    accel_offset[1] = -9;
-    accel_offset[2] = 15;
+    accel_offset[0] = -24;
+    accel_offset[1] = 10;
+    accel_offset[2] = 4;
     accel_offset[3] = 1000;
-    mag_offset[0] = 139;
-    mag_offset[1] = 212;
-    mag_offset[2] = 299;
-    mag_offset[3] = 606;
-    gyro_offset[0] = 0;
-    gyro_offset[1] = -1;
+    mag_offset[0] = 190;
+    mag_offset[1] = 189;
+    mag_offset[2] = 250;
+    mag_offset[3] = 968;
+    gyro_offset[0] = 2;
+    gyro_offset[1] = -2;
     gyro_offset[2] = -1;
   } else if (id == 0x01) {
-    accel_offset[0] = -37;
-    accel_offset[1] = 10;
-    accel_offset[2] = 3;
+    accel_offset[0] = -31;
+    accel_offset[1] = 9;
+    accel_offset[2] = 6;
     accel_offset[3] = 1000;
-    mag_offset[0] = -172;
-    mag_offset[1] = -19;
-    mag_offset[2] = 263;
-    mag_offset[3] = 1158;
+    mag_offset[0] = -184;
+    mag_offset[1] = 36;
+    mag_offset[2] = 244;
+    mag_offset[3] = 714;
     gyro_offset[0] = -1;
-    gyro_offset[1] = -3;
+    gyro_offset[1] = -2;
     gyro_offset[2] = -1;
   }
 
